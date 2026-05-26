@@ -1,0 +1,44 @@
+.dashboard-hero {
+  margin-bottom: 16px;
+}
+h1 ,h2,h3{
+
+  text-align: center;
+  
+}
+
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  
+}
+
+.kpi-item {
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.kpi-label {
+  color: var(--text-2);
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.kpi-value {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.kpi-value--saldo {
+  color: #86efac;
+}
+
+@media (min-width: 768px) {
+  .dashboard-kpis {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

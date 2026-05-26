@@ -1,0 +1,149 @@
+:root {
+  --bg-1: #0b1020;
+  --bg-2: #111827;
+  --card: #1f2937;
+  --line: #374151;
+
+  --text-1: #e5e7eb;
+  --text-2: #9ca3af;
+
+  --primary: #22c55e;
+  --primary-hover: #16a34a;
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+
+  --radius: 10px;
+
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  color: var(--text-1);
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+a {
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.page {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.card {
+  background: rgba(31, 41, 55, 0.65);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.nav-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.actions-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.form-grid {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 500px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0f172a;
+  color: var(--text-1);
+}
+
+.btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  background-color: rgb(111, 0, 255);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #052e16;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: var(--danger-hover);
+}
+
+.btn-muted {
+  background: #6b7280;
+  color: #fff;
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.error {
+  color: #fca5a5;
+}
+
+.section-space {
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-3);
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
