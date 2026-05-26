@@ -70,7 +70,11 @@ function LoginPage() {
       setInfo('Impressao digital/passkey cadastrada com sucesso');
     } catch (error) {
       const mensagemApi = error?.response?.data?.mensagem;
-      setErro(mensagemApi || 'Erro ao cadastrar impressao digital');
+      const detalhe = error?.response?.data?.erro || error?.message;
+      setErro(
+        mensagemApi ||
+          `Erro ao cadastrar impressao digital${detalhe ? `: ${detalhe}` : ''}`
+      );
     } finally {
       setCarregando(false);
     }
@@ -106,7 +110,11 @@ function LoginPage() {
       navigate('/dashboard');
     } catch (error) {
       const mensagemApi = error?.response?.data?.mensagem;
-      setErro(mensagemApi || 'Erro ao entrar com impressao digital');
+      const detalhe = error?.response?.data?.erro || error?.message;
+      setErro(
+        mensagemApi ||
+          `Erro ao entrar com impressao digital${detalhe ? `: ${detalhe}` : ''}`
+      );
     } finally {
       setCarregando(false);
     }

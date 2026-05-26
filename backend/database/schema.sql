@@ -68,3 +68,19 @@ CREATE TABLE IF NOT EXISTS movimentacoes_estoque (
   CONSTRAINT fk_mov_estoque_usuario
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
+
+CREATE TABLE IF NOT EXISTS usuarios_passkeys (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
+  credential_id VARCHAR(512) NOT NULL UNIQUE,
+  public_key TEXT NOT NULL,
+  counter BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  device_type VARCHAR(60) NULL,
+  backed_up TINYINT(1) NOT NULL DEFAULT 0,
+  transports JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_passkey_usuario
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    ON DELETE CASCADE
+);

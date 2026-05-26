@@ -12,8 +12,73 @@ const passkeyModel = require('../models/passkeyModel');
 const challenges = new Map();
 
 const rpName = process.env.WEBAUTHN_RP_NAME || 'Controle de Caixa';
-const rpID = process.env.WEBAUTHN_RP_ID || 'localhost';
-const origin = process.env.WEBAUTHN_ORIGIN || 'http://localhost:5173';
+
+function parseListaConfig(valor) {
+  if (!valor) return [];
+  return valor
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizarOrigin(url) {
+  if (!url) return '';
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
+function extrairHostname(url) {
+  if (!url) return '';
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+const defaultOrigins = ['http://localhost:5173'];
+const allowedOrigins = [
+  ...new Set([
+    ...parseListaConfig(process.env.WEBAUTHN_ALLOWED_ORIGINS),
+    process.env.WEBAUTHN_ORIGIN,
+    ...defaultOrigins
+  ].map(normalizarOrigin).filter(Boolean))
+];
+
+const allowedRPIDs = [
+  ...new Set([
+    ...parseListaConfig(process.env.WEBAUTHN_ALLOWED_RP_IDS),
+    process.env.WEBAUTHN_RP_ID,
+    ...allowedOrigins.map(extrairHostname),
+    'localhost'
+  ].map((item) => (item || '').trim()).filter(Boolean))
+];
+
+function montarContextoWebAuthn(request) {
+  const requestOrigin = normalizarOrigin(request.headers.origin);
+
+  const expectedOrigins = requestOrigin
+    ? [...new Set([requestOrigin, ...allowedOrigins])]
+    : allowedOrigins;
+
+  const requestedHost = extrairHostname(requestOrigin);
+  const rpIDAtual = requestedHost && allowedRPIDs.includes(requestedHost)
+    ? requestedHost
+    : allowedRPIDs[0];
+
+  const expectedRPIDs = rpIDAtual
+    ? [...new Set([rpIDAtual, ...allowedRPIDs])]
+    : allowedRPIDs;
+
+  return {
+    expectedOrigins,
+    expectedRPIDs,
+    rpIDAtual
+  };
+}
 
 function salvarChallenge(chave, valor) {
   challenges.set(chave, valor);
@@ -34,10 +99,18 @@ async function gerarCadastroOptions(request, response) {
     }
 
     const passkeys = await passkeyModel.buscarPorUsuarioId(usuario.id);
+    const { rpIDAtual } = montarContextoWebAuthn(request);
+
+    if (!rpIDAtual) {
+      return response.status(500).json({
+        ok: false,
+        mensagem: 'Configuracao WebAuthn invalida (RP ID ausente)'
+      });
+    }
 
     const options = await generateRegistrationOptions({
       rpName,
-      rpID,
+      rpID: rpIDAtual,
       userName: usuario.email,
       userDisplayName: usuario.nome,
       userID: String(usuario.id),
@@ -80,11 +153,13 @@ async function verificarCadastro(request, response) {
       return response.status(400).json({ ok: false, mensagem: 'Challenge expirado' });
     }
 
+    const { expectedOrigins, expectedRPIDs } = montarContextoWebAuthn(request);
+
     const verification = await verifyRegistrationResponse({
       response: cred,
       expectedChallenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
+      expectedOrigin: expectedOrigins,
+      expectedRPID: expectedRPIDs,
       requireUserVerification: false
     });
 
@@ -130,9 +205,24 @@ async function gerarLoginOptions(request, response) {
     }
 
     const passkeys = await passkeyModel.buscarPorUsuarioId(usuario.id);
+    const { rpIDAtual } = montarContextoWebAuthn(request);
+
+    if (!rpIDAtual) {
+      return response.status(500).json({
+        ok: false,
+        mensagem: 'Configuracao WebAuthn invalida (RP ID ausente)'
+      });
+    }
+
+    if (!passkeys.length) {
+      return response.status(400).json({
+        ok: false,
+        mensagem: 'Usuario ainda nao cadastrou impressao digital/passkey'
+      });
+    }
 
     const options = await generateAuthenticationOptions({
-      rpID,
+      rpID: rpIDAtual,
       timeout: 60000,
       userVerification: 'preferred',
       allowCredentials: passkeys.map((p) => ({
@@ -173,11 +263,13 @@ async function verificarLogin(request, response) {
       return response.status(404).json({ ok: false, mensagem: 'Credencial nao encontrada' });
     }
 
+    const { expectedOrigins, expectedRPIDs } = montarContextoWebAuthn(request);
+
     const verification = await verifyAuthenticationResponse({
       response: cred,
       expectedChallenge,
-      expectedOrigin: origin,
-      expectedRPID: rpID,
+      expectedOrigin: expectedOrigins,
+      expectedRPID: expectedRPIDs,
       credential: {
         id: passkey.credential_id,
         publicKey: Buffer.from(passkey.public_key, 'base64'),
