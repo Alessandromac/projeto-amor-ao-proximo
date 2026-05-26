@@ -113,7 +113,7 @@ async function gerarCadastroOptions(request, response) {
       rpID: rpIDAtual,
       userName: usuario.email,
       userDisplayName: usuario.nome,
-      userID: String(usuario.id),
+      userID: Buffer.from(String(usuario.id), 'utf-8'),
       timeout: 60000,
       attestationType: 'none',
       excludeCredentials: passkeys.map((p) => ({

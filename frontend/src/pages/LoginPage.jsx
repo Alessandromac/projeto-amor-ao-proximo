@@ -56,6 +56,7 @@ function LoginPage() {
       }
 
       setCarregando(true);
+      setInfo('Confirme no dispositivo para cadastrar a impressao digital...');
 
       const optionsResp = await httpClient.post('/passkey/register/options', { email });
       const { usuario_id, options } = optionsResp.data.dados;
@@ -72,8 +73,7 @@ function LoginPage() {
       const mensagemApi = error?.response?.data?.mensagem;
       const detalhe = error?.response?.data?.erro || error?.message;
       setErro(
-        mensagemApi ||
-          `Erro ao cadastrar impressao digital${detalhe ? `: ${detalhe}` : ''}`
+        `${mensagemApi || 'Erro ao cadastrar impressao digital'}${detalhe ? `: ${detalhe}` : ''}`
       );
     } finally {
       setCarregando(false);
@@ -112,8 +112,7 @@ function LoginPage() {
       const mensagemApi = error?.response?.data?.mensagem;
       const detalhe = error?.response?.data?.erro || error?.message;
       setErro(
-        mensagemApi ||
-          `Erro ao entrar com impressao digital${detalhe ? `: ${detalhe}` : ''}`
+        `${mensagemApi || 'Erro ao entrar com impressao digital'}${detalhe ? `: ${detalhe}` : ''}`
       );
     } finally {
       setCarregando(false);
@@ -172,7 +171,20 @@ function LoginPage() {
         </button>
       </div>
 
-      {info ? <p style={{ color: '#86efac' }}>{info}</p> : null}
+      {info ? (
+        <p
+          style={{
+            color: '#86efac',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            maxWidth: '640px'
+          }}
+        >
+          {info}
+        </p>
+      ) : null}
       {erro ? <p className="error">{erro}</p> : null}
     </main>
   );
