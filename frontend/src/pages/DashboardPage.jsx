@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { startRegistration } from '@simplewebauthn/browser'
 import httpClient from '../api/httpClient'
 import '../styles/pages/dashboard.css'
 
@@ -12,12 +13,62 @@ function DashboardPage() {
   const [saldo, setSaldo] = useState(null)
   const [movimentacoes, setMovimentacoes] = useState([])
   const [carregando, setCarregando] = useState(true)
+  const [processandoPasskey, setProcessandoPasskey] = useState(false)
   const [erro, setErro] = useState('')
+  const [info, setInfo] = useState('')
 
   function sair() {
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
     navigate('/login')
+  }
+
+  function obterHeaders() {
+    const token = localStorage.getItem('token')
+    return {
+      Authorization: `Bearer ${token}`
+    }
+  }
+
+  async function cadastrarImpressaoDigital() {
+    setErro('')
+    setInfo('')
+
+    try {
+      setProcessandoPasskey(true)
+      setInfo('Confirme no dispositivo para cadastrar a impressao digital...')
+
+      const optionsResp = await httpClient.post(
+        '/passkey/me/register/options',
+        {},
+        { headers: obterHeaders() }
+      )
+      const options = optionsResp.data?.dados?.options
+
+      const cred = await startRegistration({ optionsJSON: options })
+
+      await httpClient.post(
+        '/passkey/me/register/verify',
+        { cred },
+        { headers: obterHeaders() }
+      )
+
+      setInfo('Impressao digital/passkey cadastrada com sucesso para este usuario.')
+    } catch (error) {
+      const status = error?.response?.status
+      if (status === 401) {
+        sair()
+        return
+      }
+
+      const mensagemApi = error?.response?.data?.mensagem
+      const detalhe = error?.response?.data?.erro || error?.message
+      setErro(
+        `${mensagemApi || 'Erro ao cadastrar impressao digital'}${detalhe ? `: ${detalhe}` : ''}`
+      )
+    } finally {
+      setProcessandoPasskey(false)
+    }
   }
 
   useEffect(() => {
@@ -113,12 +164,36 @@ function DashboardPage() {
         <button type="button" onClick={sair} className="btn btn-muted">
           Sair
         </button>
+        <button
+          type="button"
+          onClick={cadastrarImpressaoDigital}
+          className="btn btn-primary"
+          disabled={processandoPasskey}
+        >
+          {processandoPasskey
+            ? 'Processando impressao digital...'
+            : 'Cadastrar impressao digital'}
+        </button>
       </div>
 
       <div className="section-space" />
 
       {carregando ? <p className="muted">Carregando dados...</p> : null}
       {erro ? <p className="error">{erro}</p> : null}
+      {info ? (
+        <p
+          style={{
+            color: '#86efac',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            maxWidth: '700px'
+          }}
+        >
+          {info}
+        </p>
+      ) : null}
 
       {!carregando && !erro && saldo ? (
         <section className="card section-space">

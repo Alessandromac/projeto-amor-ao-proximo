@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import { startAuthentication } from '@simplewebauthn/browser';
 import httpClient from '../api/httpClient';
 
 function LoginPage() {
@@ -39,41 +39,6 @@ function LoginPage() {
       setErro(
         mensagemApi ||
           `Falha no login (status: ${status || 'sem status'}) - ${detalhe || 'erro desconhecido'}`
-      );
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  async function cadastrarImpressaoDigital() {
-    setErro('');
-    setInfo('');
-
-    try {
-      if (!email) {
-        setErro('Informe o email antes de cadastrar a impressao digital');
-        return;
-      }
-
-      setCarregando(true);
-      setInfo('Confirme no dispositivo para cadastrar a impressao digital...');
-
-      const optionsResp = await httpClient.post('/passkey/register/options', { email });
-      const { usuario_id, options } = optionsResp.data.dados;
-
-      const cred = await startRegistration({ optionsJSON: options });
-
-      await httpClient.post('/passkey/register/verify', {
-        usuario_id,
-        cred
-      });
-
-      setInfo('Impressao digital/passkey cadastrada com sucesso');
-    } catch (error) {
-      const mensagemApi = error?.response?.data?.mensagem;
-      const detalhe = error?.response?.data?.erro || error?.message;
-      setErro(
-        `${mensagemApi || 'Erro ao cadastrar impressao digital'}${detalhe ? `: ${detalhe}` : ''}`
       );
     } finally {
       setCarregando(false);
@@ -154,15 +119,6 @@ function LoginPage() {
       <div className="actions-row section-space">
         <button
           type="button"
-          onClick={cadastrarImpressaoDigital}
-          disabled={carregando}
-          className="btn btn-muted"
-        >
-          Cadastrar impressao digital
-        </button>
-
-        <button
-          type="button"
           onClick={entrarComImpressaoDigital}
           disabled={carregando}
           className="btn btn-primary"
@@ -170,6 +126,10 @@ function LoginPage() {
           Entrar com impressao digital
         </button>
       </div>
+
+      <p className="muted">
+        O cadastro da impressao digital deve ser feito apos login, dentro do Dashboard.
+      </p>
 
       {info ? (
         <p

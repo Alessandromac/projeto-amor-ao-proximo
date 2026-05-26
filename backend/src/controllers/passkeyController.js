@@ -140,6 +140,60 @@ async function gerarCadastroOptions(request, response) {
   }
 }
 
+async function gerarCadastroOptionsUsuarioLogado(request, response) {
+  try {
+    const usuarioId = Number(request.usuario?.id);
+    if (!usuarioId) {
+      return response.status(401).json({ ok: false, mensagem: 'Usuario nao autenticado' });
+    }
+
+    const usuario = await usuarioModel.buscarPorId(usuarioId);
+    if (!usuario) {
+      return response.status(404).json({ ok: false, mensagem: 'Usuario nao encontrado' });
+    }
+
+    const passkeys = await passkeyModel.buscarPorUsuarioId(usuario.id);
+    const { rpIDAtual } = montarContextoWebAuthn(request);
+
+    if (!rpIDAtual) {
+      return response.status(500).json({
+        ok: false,
+        mensagem: 'Configuracao WebAuthn invalida (RP ID ausente)'
+      });
+    }
+
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID: rpIDAtual,
+      userName: usuario.email,
+      userDisplayName: usuario.nome,
+      userID: Buffer.from(String(usuario.id), 'utf-8'),
+      timeout: 60000,
+      attestationType: 'none',
+      excludeCredentials: passkeys.map((p) => ({
+        id: p.credential_id,
+        type: 'public-key'
+      })),
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred'
+      }
+    });
+
+    salvarChallenge(`reg_${usuario.id}`, options.challenge);
+
+    return response.status(200).json({
+      ok: true,
+      dados: {
+        usuario_id: usuario.id,
+        options
+      }
+    });
+  } catch (error) {
+    return response.status(500).json({ ok: false, mensagem: 'Erro ao gerar cadastro passkey', erro: error.message });
+  }
+}
+
 async function verificarCadastro(request, response) {
   try {
     const { usuario_id, cred } = request.body;
@@ -181,6 +235,58 @@ async function verificarCadastro(request, response) {
     });
 
     challenges.delete(`reg_${usuario_id}`);
+
+    return response.status(201).json({
+      ok: true,
+      mensagem: 'Passkey cadastrada com sucesso'
+    });
+  } catch (error) {
+    return response.status(500).json({ ok: false, mensagem: 'Erro ao verificar cadastro passkey', erro: error.message });
+  }
+}
+
+async function verificarCadastroUsuarioLogado(request, response) {
+  try {
+    const usuarioId = Number(request.usuario?.id);
+    const { cred } = request.body;
+
+    if (!usuarioId || !cred) {
+      return response.status(400).json({ ok: false, mensagem: 'cred e autenticacao sao obrigatorios' });
+    }
+
+    const expectedChallenge = challenges.get(`reg_${usuarioId}`);
+    if (!expectedChallenge) {
+      return response.status(400).json({ ok: false, mensagem: 'Challenge expirado' });
+    }
+
+    const { expectedOrigins, expectedRPIDs } = montarContextoWebAuthn(request);
+
+    const verification = await verifyRegistrationResponse({
+      response: cred,
+      expectedChallenge,
+      expectedOrigin: expectedOrigins,
+      expectedRPID: expectedRPIDs,
+      requireUserVerification: false
+    });
+
+    const { verified, registrationInfo } = verification;
+    if (!verified || !registrationInfo) {
+      return response.status(400).json({ ok: false, mensagem: 'Nao foi possivel verificar cadastro passkey' });
+    }
+
+    const credential = registrationInfo.credential;
+
+    await passkeyModel.criar({
+      usuarioId,
+      credentialId: credential.id,
+      publicKey: Buffer.from(credential.publicKey).toString('base64'),
+      counter: credential.counter,
+      deviceType: credential.deviceType,
+      backedUp: credential.backedUp,
+      transports: cred.response?.transports || []
+    });
+
+    challenges.delete(`reg_${usuarioId}`);
 
     return response.status(201).json({
       ok: true,
@@ -320,7 +426,9 @@ async function verificarLogin(request, response) {
 
 module.exports = {
   gerarCadastroOptions,
+  gerarCadastroOptionsUsuarioLogado,
   verificarCadastro,
+  verificarCadastroUsuarioLogado,
   gerarLoginOptions,
   verificarLogin
 };
