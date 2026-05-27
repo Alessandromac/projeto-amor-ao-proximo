@@ -286,7 +286,11 @@ function CaixaPage() {
       }
 
       limparFormulario()
-      await Promise.all([carregarMovimentacoes(), carregarSaldo(), carregarProdutos()])
+      await Promise.all([
+        carregarMovimentacoes(),
+        carregarSaldo(),
+        carregarProdutos()
+      ])
     } catch (error) {
       const status = error?.response?.status
       if (status === 401) {
@@ -378,7 +382,11 @@ function CaixaPage() {
             onChange={event => setBusca(event.target.value)}
           />
 
-          <button type="button" className="btn btn-primary" onClick={aplicarFiltro}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={aplicarFiltro}
+          >
             Aplicar filtro
           </button>
         </div>
@@ -387,32 +395,18 @@ function CaixaPage() {
       {saldoResumo ? (
         <section className="card section-space">
           <h2>Saldo do {nomeContaSelecionada()}</h2>
-          <p>Total entradas: R$ {Number(saldoResumo.total_entradas || 0).toFixed(2)}</p>
-          <p>Total saidas: R$ {Number(saldoResumo.total_saidas || 0).toFixed(2)}</p>
+          <p>
+            Total entradas: R${' '}
+            {Number(saldoResumo.total_entradas || 0).toFixed(2)}
+          </p>
+          <p>
+            Total saidas: R$ {Number(saldoResumo.total_saidas || 0).toFixed(2)}
+          </p>
           <p>
             <strong>
               Saldo final: R$ {Number(saldoResumo.saldo_atual || 0).toFixed(2)}
             </strong>
           </p>
-        </section>
-      ) : null}
-
-      {ehAdmin ? (
-        <section className="card section-space">
-          <h2>Cadastro de Contas de Caixa</h2>
-          <form onSubmit={criarConta} className="form-grid">
-            <input
-              className="input"
-              type="text"
-              placeholder="Ex: Caixa Euzania"
-              value={novaContaNome}
-              onChange={event => setNovaContaNome(event.target.value)}
-              required
-            />
-            <button type="submit" className="btn btn-primary" disabled={criandoConta}>
-              {criandoConta ? 'Salvando conta...' : 'Cadastrar conta'}
-            </button>
-          </form>
         </section>
       ) : null}
 
@@ -575,6 +569,29 @@ function CaixaPage() {
         </form>
       </section>
 
+      {ehAdmin ? (
+        <section className="card section-space">
+          <h2>Cadastro de Contas de Caixa</h2>
+          <form onSubmit={criarConta} className="form-grid">
+            <input
+              className="input"
+              type="text"
+              placeholder="Ex: Caixa Euzania"
+              value={novaContaNome}
+              onChange={event => setNovaContaNome(event.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={criandoConta}
+            >
+              {criandoConta ? 'Salvando conta...' : 'Cadastrar conta'}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
       {erro ? <p className="error section-space">{erro}</p> : null}
       {carregando ? <p className="muted section-space">Carregando...</p> : null}
 
@@ -592,7 +609,8 @@ function CaixaPage() {
                     {new Intl.DateTimeFormat('pt-BR').format(
                       new Date(item.data_movimento)
                     )}{' '}
-                    - <strong>{item.conta_nome || 'Sem conta'}</strong> - {item.tipo}
+                    - <strong>{item.conta_nome || 'Sem conta'}</strong> -{' '}
+                    {item.tipo}
                     {' - '}
                     {item.descricao} - {item.categoria} - R${' '}
                     {Number(item.valor).toFixed(2)}
