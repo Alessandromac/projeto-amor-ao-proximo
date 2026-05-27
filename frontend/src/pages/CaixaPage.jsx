@@ -29,12 +29,18 @@ function paraInputDateTime(valor) {
 
 function CaixaPage() {
   const navigate = useNavigate()
+  const usuario = JSON.parse(localStorage.getItem('usuario') || 'null')
+  const ehAdmin = usuario?.perfil === 'admin'
 
   const [movimentacoes, setMovimentacoes] = useState([])
   const [produtos, setProdutos] = useState([])
+  const [contasCaixa, setContasCaixa] = useState([])
+  const [saldoResumo, setSaldoResumo] = useState(null)
+
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [criandoConta, setCriandoConta] = useState(false)
   const [editandoId, setEditandoId] = useState(null)
 
   const [tipo, setTipo] = useState('entrada')
@@ -45,6 +51,11 @@ function CaixaPage() {
   const [produtoId, setProdutoId] = useState('')
   const [quantidade, setQuantidade] = useState('')
   const [dataMovimento, setDataMovimento] = useState('')
+  const [contaLancamento, setContaLancamento] = useState('')
+
+  const [contaFiltro, setContaFiltro] = useState('geral')
+  const [busca, setBusca] = useState('')
+  const [novaContaNome, setNovaContaNome] = useState('')
 
   function sair() {
     localStorage.removeItem('token')
@@ -55,6 +66,18 @@ function CaixaPage() {
   function obterHeaders() {
     const token = localStorage.getItem('token')
     return { Authorization: `Bearer ${token}` }
+  }
+
+  function montarQuery(params) {
+    const query = new URLSearchParams()
+    if (params.contaId && params.contaId !== 'geral') {
+      query.set('conta_id', params.contaId)
+    }
+    if (params.busca && params.busca.trim()) {
+      query.set('busca', params.busca.trim())
+    }
+    const texto = query.toString()
+    return texto ? `?${texto}` : ''
   }
 
   function limparFormulario() {
@@ -69,11 +92,38 @@ function CaixaPage() {
     setEditandoId(null)
   }
 
+  function contasSelecionaveis() {
+    return contasCaixa.filter(item => item.id !== 'geral')
+  }
+
+  async function carregarContas() {
+    const resposta = await httpClient.get('/contas-caixa', {
+      headers: obterHeaders()
+    })
+
+    const contas = resposta.data?.dados || []
+    setContasCaixa(contas)
+
+    if (!contaLancamento) {
+      const primeiraConta = contas.find(item => item.id !== 'geral')
+      if (primeiraConta) setContaLancamento(String(primeiraConta.id))
+    }
+  }
+
   async function carregarMovimentacoes() {
-    const resposta = await httpClient.get('/caixa', {
+    const query = montarQuery({ contaId: contaFiltro, busca })
+    const resposta = await httpClient.get(`/caixa${query}`, {
       headers: obterHeaders()
     })
     setMovimentacoes(resposta.data?.dados || [])
+  }
+
+  async function carregarSaldo() {
+    const query = montarQuery({ contaId: contaFiltro })
+    const resposta = await httpClient.get(`/caixa/saldo${query}`, {
+      headers: obterHeaders()
+    })
+    setSaldoResumo(resposta.data?.dados || null)
   }
 
   async function carregarProdutos() {
@@ -81,6 +131,15 @@ function CaixaPage() {
       headers: obterHeaders()
     })
     setProdutos(resposta.data?.dados || [])
+  }
+
+  async function carregarTela() {
+    await Promise.all([
+      carregarMovimentacoes(),
+      carregarSaldo(),
+      carregarProdutos(),
+      carregarContas()
+    ])
   }
 
   useEffect(() => {
@@ -94,14 +153,9 @@ function CaixaPage() {
           return
         }
 
-        const [resMov, resProd] = await Promise.all([
-          httpClient.get('/caixa', { headers: obterHeaders() }),
-          httpClient.get('/produtos', { headers: obterHeaders() })
-        ])
+        await carregarTela()
 
         if (!ativo) return
-        setMovimentacoes(resMov.data?.dados || [])
-        setProdutos(resProd.data?.dados || [])
         setErro('')
       } catch (error) {
         const status = error?.response?.status
@@ -129,12 +183,60 @@ function CaixaPage() {
     }
   }, [navigate])
 
+  async function aplicarFiltro() {
+    try {
+      setErro('')
+      setCarregando(true)
+      await Promise.all([carregarMovimentacoes(), carregarSaldo()])
+    } catch (error) {
+      const status = error?.response?.status
+      if (status === 401) {
+        sair()
+        return
+      }
+      setErro(error?.response?.data?.mensagem || 'Erro ao aplicar filtro')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  async function criarConta(event) {
+    event.preventDefault()
+    try {
+      setErro('')
+      setCriandoConta(true)
+
+      await httpClient.post(
+        '/contas-caixa',
+        { nome: novaContaNome.trim() },
+        { headers: obterHeaders() }
+      )
+
+      setNovaContaNome('')
+      await carregarContas()
+    } catch (error) {
+      const status = error?.response?.status
+      if (status === 401) {
+        sair()
+        return
+      }
+      setErro(error?.response?.data?.mensagem || 'Erro ao criar conta')
+    } finally {
+      setCriandoConta(false)
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
 
     try {
       setErro('')
       setSalvando(true)
+
+      if (!contaLancamento || Number.isNaN(Number(contaLancamento))) {
+        setErro('Selecione uma conta de caixa para o lancamento')
+        return
+      }
 
       if (tipo === 'entrada') {
         const payloadDoacao = {
@@ -144,14 +246,10 @@ function CaixaPage() {
 
         if (tipoDoacao === 'dinheiro') {
           payloadDoacao.valor = Number(valor)
+          payloadDoacao.conta_caixa_id = Number(contaLancamento)
         } else {
           payloadDoacao.produto_id = Number(produtoId)
           payloadDoacao.quantidade = Number(quantidade)
-
-          // valor opcional para itens
-          if (valor !== '' && Number(valor) > 0) {
-            payloadDoacao.valor = Number(valor)
-          }
         }
 
         await httpClient.post('/doacoes', payloadDoacao, {
@@ -163,6 +261,7 @@ function CaixaPage() {
           descricao: descricao?.trim() || 'Saida sem descricao',
           categoria,
           valor: Number(valor),
+          conta_caixa_id: Number(contaLancamento),
           data_movimento: dataMovimento
             ? `${dataMovimento.replace('T', ' ')}:00`
             : undefined
@@ -180,7 +279,7 @@ function CaixaPage() {
       }
 
       limparFormulario()
-      await Promise.all([carregarMovimentacoes(), carregarProdutos()])
+      await Promise.all([carregarMovimentacoes(), carregarSaldo(), carregarProdutos()])
     } catch (error) {
       const status = error?.response?.status
       if (status === 401) {
@@ -203,6 +302,7 @@ function CaixaPage() {
     setValor(item.valor || '')
     setProdutoId('')
     setQuantidade('')
+    setContaLancamento(String(item.conta_caixa_id || ''))
     setDataMovimento(paraInputDateTime(item.data_movimento))
   }
 
@@ -219,7 +319,7 @@ function CaixaPage() {
       })
 
       if (editandoId === id) limparFormulario()
-      await carregarMovimentacoes()
+      await Promise.all([carregarMovimentacoes(), carregarSaldo()])
     } catch (error) {
       const status = error?.response?.status
       if (status === 401) {
@@ -249,9 +349,84 @@ function CaixaPage() {
       </div>
 
       <section className="card section-space">
+        <h2>Pesquisa e Filtro</h2>
+        <div className="form-grid">
+          <select
+            className="input"
+            value={contaFiltro}
+            onChange={event => setContaFiltro(event.target.value)}
+          >
+            {contasCaixa.map(conta => (
+              <option key={String(conta.id)} value={String(conta.id)}>
+                {conta.nome}
+              </option>
+            ))}
+          </select>
+
+          <input
+            className="input"
+            type="text"
+            placeholder="Pesquisar por descricao, categoria, conta ou usuario"
+            value={busca}
+            onChange={event => setBusca(event.target.value)}
+          />
+
+          <button type="button" className="btn btn-primary" onClick={aplicarFiltro}>
+            Aplicar filtro
+          </button>
+        </div>
+      </section>
+
+      {saldoResumo ? (
+        <section className="card section-space">
+          <h2>Saldo do Caixa Selecionado</h2>
+          <p>Total entradas: R$ {Number(saldoResumo.total_entradas || 0).toFixed(2)}</p>
+          <p>Total saidas: R$ {Number(saldoResumo.total_saidas || 0).toFixed(2)}</p>
+          <p>
+            <strong>
+              Saldo final: R$ {Number(saldoResumo.saldo_atual || 0).toFixed(2)}
+            </strong>
+          </p>
+        </section>
+      ) : null}
+
+      {ehAdmin ? (
+        <section className="card section-space">
+          <h2>Cadastro de Contas de Caixa</h2>
+          <form onSubmit={criarConta} className="form-grid">
+            <input
+              className="input"
+              type="text"
+              placeholder="Ex: Caixa Euzania"
+              value={novaContaNome}
+              onChange={event => setNovaContaNome(event.target.value)}
+              required
+            />
+            <button type="submit" className="btn btn-primary" disabled={criandoConta}>
+              {criandoConta ? 'Salvando conta...' : 'Cadastrar conta'}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="card section-space">
         <h2>{editandoId ? 'Editar Movimentacao' : 'Novo Lancamento'}</h2>
 
         <form onSubmit={handleSubmit} className="form-grid">
+          <select
+            className="input"
+            value={contaLancamento}
+            onChange={event => setContaLancamento(event.target.value)}
+            required
+          >
+            <option value="">Selecione a conta de caixa</option>
+            {contasSelecionaveis().map(conta => (
+              <option key={conta.id} value={conta.id}>
+                {conta.nome}
+              </option>
+            ))}
+          </select>
+
           <select
             className="input"
             value={tipo}
@@ -319,15 +494,6 @@ function CaixaPage() {
                     value={quantidade}
                     onChange={event => setQuantidade(event.target.value)}
                     required
-                  />
-
-                  <input
-                    className="input"
-                    type="number"
-                    step="0.01"
-                    placeholder="Valor estimado (opcional)"
-                    value={valor}
-                    onChange={event => setValor(event.target.value)}
                   />
                 </>
               )}
@@ -419,7 +585,9 @@ function CaixaPage() {
                     {new Intl.DateTimeFormat('pt-BR').format(
                       new Date(item.data_movimento)
                     )}{' '}
-                    - {item.tipo} - {item.descricao} - {item.categoria} - R${' '}
+                    - <strong>{item.conta_nome || 'Sem conta'}</strong> - {item.tipo}
+                    {' - '}
+                    {item.descricao} - {item.categoria} - R${' '}
                     {Number(item.valor).toFixed(2)}
                   </div>
 
@@ -451,3 +619,4 @@ function CaixaPage() {
 }
 
 export default CaixaPage
+

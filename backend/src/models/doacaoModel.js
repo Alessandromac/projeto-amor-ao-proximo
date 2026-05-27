@@ -2,7 +2,16 @@ const db = require('../config/db');
 
 const TIPOS_ITEM = ['alimentos', 'vestuario', 'higiene'];
 
-async function criar({ tipoDoacao, descricao, valor, produtoId, quantidade, dataDoacao, usuarioId }) {
+async function criar({
+  tipoDoacao,
+  descricao,
+  valor,
+  produtoId,
+  quantidade,
+  dataDoacao,
+  usuarioId,
+  contaCaixaId
+}) {
   const conexao = await db.getConnection();
 
   try {
@@ -12,8 +21,8 @@ async function criar({ tipoDoacao, descricao, valor, produtoId, quantidade, data
 
     const [resultadoDoacao] = await conexao.query(
       `INSERT INTO doacoes
-       (tipo_doacao, descricao, valor, produto_id, quantidade, data_doacao, usuario_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (tipo_doacao, descricao, valor, produto_id, quantidade, data_doacao, usuario_id, conta_caixa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         tipoDoacao,
         descricao,
@@ -21,7 +30,8 @@ async function criar({ tipoDoacao, descricao, valor, produtoId, quantidade, data
         TIPOS_ITEM.includes(tipoDoacao) ? Number(produtoId) : null,
         TIPOS_ITEM.includes(tipoDoacao) ? Number(quantidade) : null,
         data,
-        usuarioId
+        usuarioId,
+        tipoDoacao === 'dinheiro' ? Number(contaCaixaId) : null
       ]
     );
 
@@ -31,16 +41,23 @@ async function criar({ tipoDoacao, descricao, valor, produtoId, quantidade, data
     if (tipoDoacao === 'dinheiro') {
       const [resultadoCaixa] = await conexao.query(
         `INSERT INTO movimentacoes_caixa
-         (tipo, descricao, categoria, valor, data_movimento, usuario_id)
-         VALUES ('entrada', ?, 'doacao', ?, ?, ?)`,
-        [`Doacao em dinheiro: ${descricao}`, Number(valor), data, usuarioId]
+         (tipo, descricao, categoria, valor, data_movimento, usuario_id, conta_caixa_id)
+         VALUES ('entrada', ?, 'doacao', ?, ?, ?, ?)`,
+        [
+          `Doacao em dinheiro: ${descricao}`,
+          Number(valor),
+          data,
+          usuarioId,
+          Number(contaCaixaId)
+        ]
       );
 
       movimentoCaixa = {
         id: resultadoCaixa.insertId,
         tipo: 'entrada',
         categoria: 'doacao',
-        valor: Number(valor)
+        valor: Number(valor),
+        conta_caixa_id: Number(contaCaixaId)
       };
     }
 
@@ -92,6 +109,7 @@ async function criar({ tipoDoacao, descricao, valor, produtoId, quantidade, data
       tipo_doacao: tipoDoacao,
       descricao,
       valor: tipoDoacao === 'dinheiro' ? Number(valor) : null,
+      conta_caixa_id: tipoDoacao === 'dinheiro' ? Number(contaCaixaId) : null,
       produto_id: TIPOS_ITEM.includes(tipoDoacao) ? Number(produtoId) : null,
       quantidade: TIPOS_ITEM.includes(tipoDoacao) ? Number(quantidade) : null,
       data_doacao: data,
@@ -114,6 +132,8 @@ async function listar() {
       d.tipo_doacao,
       d.descricao,
       d.valor,
+      d.conta_caixa_id,
+      COALESCE(cc.nome, 'Sem conta') AS conta_nome,
       d.produto_id,
       p.nome AS produto_nome,
       d.quantidade,
@@ -123,6 +143,7 @@ async function listar() {
       d.created_at
      FROM doacoes d
      INNER JOIN usuarios u ON u.id = d.usuario_id
+     LEFT JOIN contas_caixa cc ON cc.id = d.conta_caixa_id
      LEFT JOIN produtos p ON p.id = d.produto_id
      ORDER BY d.data_doacao DESC, d.id DESC`
   );

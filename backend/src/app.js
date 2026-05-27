@@ -10,6 +10,7 @@ const produtoRoutes = require('./routes/produtoRoutes')
 //const estoqueRoutes = require('./routes/estoqueRoutes')
 const passkeyRoutes = require('./routes/passkeyRoutes')
 const doacaoRoutes = require('./routes/doacaoRoutes')
+const contaCaixaRoutes = require('./routes/contaCaixaRoutes')
 
 app.use(cors())
 app.use(express.json())
@@ -19,6 +20,7 @@ app.use('/api', produtoRoutes)
 //app.use('/api', estoqueRoutes)
 app.use('/api', passkeyRoutes)
 app.use('/api', doacaoRoutes)
+app.use('/api', contaCaixaRoutes)
 
 app.get('/health', (request, response) => {
   return response.status(200).json({

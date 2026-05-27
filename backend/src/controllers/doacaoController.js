@@ -1,4 +1,5 @@
 const doacaoModel = require('../models/doacaoModel')
+const contaCaixaModel = require('../models/contaCaixaModel')
 
 const TIPOS_VALIDOS = ['dinheiro', 'alimentos', 'vestuario', 'higiene']
 const TIPOS_ITEM = ['alimentos', 'vestuario', 'higiene']
@@ -9,6 +10,7 @@ async function criar(request, response) {
       tipo_doacao,
       descricao,
       valor,
+      conta_caixa_id,
       produto_id,
       quantidade,
       data_doacao
@@ -34,6 +36,22 @@ async function criar(request, response) {
         return response.status(400).json({
           ok: false,
           mensagem: 'Para doacao em dinheiro, valor deve ser maior que zero'
+        })
+      }
+
+      const contaIdNumero = Number(conta_caixa_id)
+      if (!contaIdNumero || Number.isNaN(contaIdNumero)) {
+        return response.status(400).json({
+          ok: false,
+          mensagem: 'Para doacao em dinheiro, conta_caixa_id e obrigatorio'
+        })
+      }
+
+      const conta = await contaCaixaModel.buscarPorId(contaIdNumero)
+      if (!conta || Number(conta.ativo) !== 1) {
+        return response.status(404).json({
+          ok: false,
+          mensagem: 'Conta de caixa nao encontrada ou inativa'
         })
       }
     }
@@ -64,7 +82,8 @@ async function criar(request, response) {
       produtoId: produto_id,
       quantidade,
       dataDoacao: data_doacao || new Date(),
-      usuarioId: request.usuario.id
+      usuarioId: request.usuario.id,
+      contaCaixaId: conta_caixa_id
     })
 
     return response.status(201).json({

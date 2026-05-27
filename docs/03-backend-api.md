@@ -42,8 +42,20 @@
 
 ### Caixa
 - GET /api/caixa (admin, viewer)
+  - filtros opcionais:
+    - conta_id=ID_DA_CONTA ou conta_id=geral
+    - busca=texto
 - GET /api/caixa/saldo (admin, viewer)
+  - filtro opcional:
+    - conta_id=ID_DA_CONTA ou conta_id=geral
 - POST /api/caixa (admin)
+- PUT /api/caixa/:id (admin)
+- DELETE /api/caixa/:id (admin)
+
+### Contas de caixa
+- GET /api/contas-caixa (admin, viewer)
+- POST /api/contas-caixa (admin)
+- PUT /api/contas-caixa/:id (admin)
 
 ### Gastos
 - GET /api/gastos (admin, viewer)
@@ -56,8 +68,11 @@
 - POST /api/produtos (admin)
 - PUT /api/produtos/:id (admin)
 - DELETE /api/produtos/:id (admin)
-- GET /api/estoque/movimentacoes (admin, viewer)
-- POST /api/estoque/movimentar (admin)
+
+### Doacoes
+- GET /api/doacoes (admin, viewer)
+- POST /api/doacoes (admin)
+  - para tipo_doacao=dinheiro: enviar conta_caixa_id
 
 ## Padrao de headers autenticados
 - Authorization: Bearer SEU_TOKEN

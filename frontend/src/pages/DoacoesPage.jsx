@@ -17,8 +17,10 @@ function DoacoesPage() {
   const [valor, setValor] = useState('')
   const [produtoId, setProdutoId] = useState('')
   const [quantidade, setQuantidade] = useState('')
+  const [contaCaixaId, setContaCaixaId] = useState('')
 
   const [produtos, setProdutos] = useState([])
+  const [contasCaixa, setContasCaixa] = useState([])
   const [doacoes, setDoacoes] = useState([])
 
   const [carregando, setCarregando] = useState(true)
@@ -45,16 +47,25 @@ function DoacoesPage() {
     setValor('')
     setProdutoId('')
     setQuantidade('')
+    if (contasCaixa.length > 0) {
+      setContaCaixaId(String(contasCaixa[0].id))
+    }
   }
 
   const carregarDados = useCallback(async () => {
-    const [resDoacoes, resProdutos] = await Promise.all([
+    const [resDoacoes, resProdutos, resContas] = await Promise.all([
       httpClient.get('/doacoes', { headers: obterHeaders() }),
-      httpClient.get('/produtos', { headers: obterHeaders() })
+      httpClient.get('/produtos', { headers: obterHeaders() }),
+      httpClient.get('/contas-caixa', { headers: obterHeaders() })
     ])
 
     setDoacoes(resDoacoes.data?.dados || [])
     setProdutos(resProdutos.data?.dados || [])
+    const contas = (resContas.data?.dados || []).filter(c => c.id !== 'geral')
+    setContasCaixa(contas)
+    if (contas.length > 0) {
+      setContaCaixaId(prev => prev || String(contas[0].id))
+    }
   }, [obterHeaders])
   useEffect(() => {
     let ativo = true
@@ -110,6 +121,7 @@ function DoacoesPage() {
 
       if (ehDinheiro) {
         payload.valor = Number(valor)
+        payload.conta_caixa_id = Number(contaCaixaId)
       } else {
         payload.produto_id = Number(produtoId)
         payload.quantidade = Number(quantidade)
@@ -178,15 +190,31 @@ function DoacoesPage() {
           />
 
           {ehDinheiro ? (
-            <input
-              className="input"
-              type="number"
-              step="0.01"
-              placeholder="Valor em dinheiro"
-              value={valor}
-              onChange={event => setValor(event.target.value)}
-              required
-            />
+            <>
+              <select
+                className="input"
+                value={contaCaixaId}
+                onChange={event => setContaCaixaId(event.target.value)}
+                required
+              >
+                <option value="">Selecione a conta de caixa</option>
+                {contasCaixa.map(conta => (
+                  <option key={conta.id} value={conta.id}>
+                    {conta.nome}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                className="input"
+                type="number"
+                step="0.01"
+                placeholder="Valor em dinheiro"
+                value={valor}
+                onChange={event => setValor(event.target.value)}
+                required
+              />
+            </>
           ) : (
             <>
               <select
@@ -240,7 +268,7 @@ function DoacoesPage() {
                   )}{' '}
                   - {item.tipo_doacao} - {item.descricao} -{' '}
                   {item.tipo_doacao === 'dinheiro'
-                    ? `R$ ${Number(item.valor || 0).toFixed(2)}`
+                    ? `R$ ${Number(item.valor || 0).toFixed(2)} (${item.conta_nome || 'Sem conta'})`
                     : `${Number(item.quantidade || 0)} de ${item.produto_nome || 'produto'}`}
                 </li>
               ))}

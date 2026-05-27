@@ -2,7 +2,7 @@
 
 ## Estrutura principal
 
-- src/pages: telas (Login, Dashboard, Gastos, Produtos)
+- src/pages: telas (Login, Dashboard, Caixa, Doacoes, Produtos)
 - src/routes: rotas do frontend (React Router)
 - src/components: componentes reutilizaveis (ex: PrivateRoute)
 - src/api/httpClient.js: cliente axios com baseURL da API
@@ -21,6 +21,19 @@
 4. Frontend salva token e usuario no localStorage
 5. Usuario navega para /dashboard
 6. PrivateRoute protege telas internas
+
+## Fluxo novo de contas de caixa
+
+1. Na tela Caixa, o frontend busca:
+- GET /api/contas-caixa
+- GET /api/caixa
+- GET /api/caixa/saldo
+2. Usuario escolhe uma conta (ex: Caixa Euzania) para lancar entrada/saida.
+3. Usuario pode filtrar por:
+- conta especifica
+- todas as contas (Caixa Geral)
+- texto de busca
+4. API devolve lista filtrada e saldo do filtro selecionado.
 
 ## Como consumir API no React (passo a passo)
 
