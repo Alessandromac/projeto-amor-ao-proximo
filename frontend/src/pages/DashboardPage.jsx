@@ -53,7 +53,9 @@ function DashboardPage() {
         { headers: obterHeaders() }
       )
 
-      setInfo('Impressao digital/passkey cadastrada com sucesso para este usuario.')
+      setInfo(
+        'Impressao digital/passkey cadastrada com sucesso para este usuario.'
+      )
     } catch (error) {
       const status = error?.response?.status
       if (status === 401) {
@@ -197,7 +199,7 @@ function DashboardPage() {
 
       {!carregando && !erro && saldo ? (
         <section className="card section-space">
-          <h2>Resumo de Caixa</h2>
+          <h2>Resumo de Caixa Geral</h2>
 
           <div className="dashboard-kpis">
             <article className="kpi-item">
