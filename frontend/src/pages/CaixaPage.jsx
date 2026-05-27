@@ -96,6 +96,13 @@ function CaixaPage() {
     return contasCaixa.filter(item => item.id !== 'geral')
   }
 
+  function nomeContaSelecionada() {
+    const conta = contasCaixa.find(
+      item => String(item.id) === String(contaFiltro)
+    )
+    return conta?.nome || 'Caixa Geral'
+  }
+
   async function carregarContas() {
     const resposta = await httpClient.get('/contas-caixa', {
       headers: obterHeaders()
@@ -379,7 +386,7 @@ function CaixaPage() {
 
       {saldoResumo ? (
         <section className="card section-space">
-          <h2>Saldo do Caixa Selecionado</h2>
+          <h2>Saldo do {nomeContaSelecionada()}</h2>
           <p>Total entradas: R$ {Number(saldoResumo.total_entradas || 0).toFixed(2)}</p>
           <p>Total saidas: R$ {Number(saldoResumo.total_saidas || 0).toFixed(2)}</p>
           <p>
@@ -619,4 +626,3 @@ function CaixaPage() {
 }
 
 export default CaixaPage
-
