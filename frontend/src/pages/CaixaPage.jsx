@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import httpClient from '../api/httpClient'
 
@@ -63,12 +63,12 @@ function CaixaPage() {
     navigate('/login')
   }
 
-  function obterHeaders() {
+  const obterHeaders = useCallback(() => {
     const token = localStorage.getItem('token')
     return { Authorization: `Bearer ${token}` }
-  }
+  }, [])
 
-  function montarQuery(params) {
+  const montarQuery = useCallback(params => {
     const query = new URLSearchParams()
     if (params.contaId && params.contaId !== 'geral') {
       query.set('conta_id', params.contaId)
@@ -78,7 +78,7 @@ function CaixaPage() {
     }
     const texto = query.toString()
     return texto ? `?${texto}` : ''
-  }
+  }, [])
 
   function limparFormulario() {
     setTipo('entrada')
@@ -103,7 +103,7 @@ function CaixaPage() {
     return conta?.nome || 'Caixa Geral'
   }
 
-  async function carregarContas() {
+  const carregarContas = useCallback(async () => {
     const resposta = await httpClient.get('/contas-caixa', {
       headers: obterHeaders()
     })
@@ -111,43 +111,44 @@ function CaixaPage() {
     const contas = resposta.data?.dados || []
     setContasCaixa(contas)
 
-    if (!contaLancamento) {
+    setContaLancamento(contaAtual => {
+      if (contaAtual) return contaAtual
       const primeiraConta = contas.find(item => item.id !== 'geral')
-      if (primeiraConta) setContaLancamento(String(primeiraConta.id))
-    }
-  }
+      return primeiraConta ? String(primeiraConta.id) : ''
+    })
+  }, [obterHeaders])
 
-  async function carregarMovimentacoes() {
+  const carregarMovimentacoes = useCallback(async () => {
     const query = montarQuery({ contaId: contaFiltro, busca })
     const resposta = await httpClient.get(`/caixa${query}`, {
       headers: obterHeaders()
     })
     setMovimentacoes(resposta.data?.dados || [])
-  }
+  }, [busca, contaFiltro, montarQuery, obterHeaders])
 
-  async function carregarSaldo() {
+  const carregarSaldo = useCallback(async () => {
     const query = montarQuery({ contaId: contaFiltro })
     const resposta = await httpClient.get(`/caixa/saldo${query}`, {
       headers: obterHeaders()
     })
     setSaldoResumo(resposta.data?.dados || null)
-  }
+  }, [contaFiltro, montarQuery, obterHeaders])
 
-  async function carregarProdutos() {
+  const carregarProdutos = useCallback(async () => {
     const resposta = await httpClient.get('/produtos', {
       headers: obterHeaders()
     })
     setProdutos(resposta.data?.dados || [])
-  }
+  }, [obterHeaders])
 
-  async function carregarTela() {
+  const carregarTela = useCallback(async () => {
     await Promise.all([
       carregarMovimentacoes(),
       carregarSaldo(),
       carregarProdutos(),
       carregarContas()
     ])
-  }
+  }, [carregarContas, carregarMovimentacoes, carregarProdutos, carregarSaldo])
 
   useEffect(() => {
     let ativo = true
@@ -188,7 +189,7 @@ function CaixaPage() {
     return () => {
       ativo = false
     }
-  }, [navigate])
+  }, [carregarTela, navigate])
 
   async function aplicarFiltro() {
     try {
