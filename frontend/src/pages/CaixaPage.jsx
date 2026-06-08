@@ -289,11 +289,16 @@ function CaixaPage() {
       }
 
       limparFormulario()
-      await Promise.all([
-        carregarMovimentacoes(),
-        carregarSaldo(),
-        carregarProdutos()
-      ])
+
+      if (tipo === 'entrada' && tipoDoacao !== 'dinheiro') {
+        await Promise.all([
+          carregarMovimentacoes(),
+          carregarSaldo(),
+          carregarProdutos()
+        ])
+      } else {
+        await Promise.all([carregarMovimentacoes(), carregarSaldo()])
+      }
     } catch (error) {
       const status = error?.response?.status
       if (status === 401) {
@@ -415,6 +420,10 @@ function CaixaPage() {
 
       <section className="card section-space">
         <h2>{editandoId ? 'Editar Movimentacao' : 'Novo Lancamento'}</h2>
+
+        {salvando ? (
+          <p className="muted">Salvando lancamento...</p>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="form-grid">
           <select
