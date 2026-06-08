@@ -248,7 +248,10 @@ function CaixaPage() {
       if (tipo === 'entrada') {
         const payloadDoacao = {
           tipo_doacao: tipoDoacao,
-          descricao: descricao?.trim() || 'Doacao sem descricao'
+          descricao: descricao?.trim() || 'Doacao sem descricao',
+          data_doacao: dataMovimento
+            ? `${dataMovimento.replace('T', ' ')}:00`
+            : undefined
         }
 
         if (tipoDoacao === 'dinheiro') {
@@ -532,14 +535,15 @@ function CaixaPage() {
                 required
               />
 
-              <input
-                className="input"
-                type="datetime-local"
-                value={dataMovimento}
-                onChange={event => setDataMovimento(event.target.value)}
-              />
             </>
           )}
+
+          <input
+            className="input"
+            type="datetime-local"
+            value={dataMovimento}
+            onChange={event => setDataMovimento(event.target.value)}
+          />
 
           <div className="actions-row">
             <button

@@ -10,7 +10,7 @@ h1 ,h2,h3{
 .dashboard-kpis {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 20px;
   
 }
 
